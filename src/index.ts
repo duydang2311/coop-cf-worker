@@ -11,8 +11,27 @@
  * Learn more at https://developers.cloudflare.com/workers/
  */
 
+import GET from './GET';
+import HEAD from './HEAD';
+import { getJwt, verifyJwt, type JwtPayload } from './utils';
+
+declare global {
+	namespace Cloudflare {
+		interface Env {
+			jwt: JwtPayload;
+		}
+	}
+}
+
 export default {
 	async fetch(request, env, ctx) {
+		try {
+			env.jwt = await verifyJwt(getJwt(request), env.JWT_PUBLIC_KEY);
+		} catch (e) {
+			console.log({ message: 'Failed to authenticate request', details: e instanceof Error ? e.message : e + '' });
+			return new Response('Unauthorized', { status: 401 });
+		}
+
 		switch (request.method) {
 			case 'HEAD':
 				return HEAD(request, env, ctx);
@@ -28,53 +47,3 @@ export default {
 		}
 	},
 } satisfies ExportedHandler<Env>;
-
-const HEAD: ExportedHandlerFetchHandler<Env> = async (request, env, ctx) => {
-	const cache = caches.default;
-	const pathname = getPathname(request);
-
-	let response = await cache.match(request);
-	if (!response) {
-		const object = await env.R2_BUCKET.head(pathname.substring(1));
-		if (!object) {
-			return new Response('Not Found', { status: 404 });
-		}
-		const headers = buildHeaders(object);
-		response = new Response(null, { status: 200, headers });
-		ctx.waitUntil(cache.put(request, response.clone()));
-	}
-	return response;
-};
-
-const GET: ExportedHandlerFetchHandler<Env> = async (request, env, ctx) => {
-	const cache = caches.default;
-	const pathname = getPathname(request);
-
-	let response = await cache.match(request);
-
-	if (!response) {
-		const object = await env.R2_BUCKET.get(pathname.substring(1));
-		if (!object) {
-			return new Response('Not Found', { status: 404 });
-		}
-		const headers = buildHeaders(object);
-		response = new Response(object.body, { status: 200, headers });
-		ctx.waitUntil(cache.put(request, response.clone()));
-	}
-
-	return response;
-};
-
-const getPathname = (request: Request) => {
-	const pathnameStart = request.url.indexOf('/', request.url.indexOf('://') + 3);
-	return pathnameStart === -1 ? '/' : request.url.substring(pathnameStart);
-};
-
-const buildHeaders = (object: R2Object) => {
-	const headers = new Headers();
-	object.writeHttpMetadata(headers);
-	headers.set('ETag', object.httpEtag);
-	headers.set('Cache-Control', 'public, max-age=31536000, immutable');
-
-	return headers;
-};
