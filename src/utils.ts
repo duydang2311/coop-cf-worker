@@ -13,12 +13,13 @@ export const getPathname = (request: Request) => {
 	return pathnameStart === -1 ? '/' : request.url.substring(pathnameStart);
 };
 
-export const buildHeaders = (object: R2Object) => {
-	const headers = new Headers();
-	object.writeHttpMetadata(headers);
-	headers.set('ETag', object.httpEtag);
+export const setResponseR2ObjectHeaders = (object: R2Object) => (response: Response) => {
+	object.writeHttpMetadata(response.headers);
+	response.headers.set('ETag', object.httpEtag);
+};
 
-	return headers;
+export const setResponseCacheHeaders = (jwt: JwtPayload) => (response: Response) => {
+	response.headers.set('Cache-Control', `max-age=${getSecondsToExpire(jwt.exp)}, must-revalidate`);
 };
 
 export const verifyJwt = async (token: string, publicPemSkpi: string) => {
@@ -119,4 +120,15 @@ export const getJwt = (request: Request) => {
 export const getSecondsToExpire = (timestampInSeconds: number) => {
 	const now = Math.floor(Date.now() / 1000);
 	return Math.max(0, timestampInSeconds - now);
-}
+};
+
+export const isOriginAllowed = (env: Env) => (origin: string) => {
+	return origin && (env.ALLOWED_ORIGINS as unknown as string[]).includes(origin);
+};
+
+export const setResponseCorsHeaders = (origin: string, headers: string) => (response: Response) => {
+	response.headers.set('Access-Control-Allow-Origin', origin);
+	response.headers.set('Access-Control-Allow-Methods', 'OPTIONS,HEAD,GET');
+	response.headers.set('Access-Control-Allow-Headers', headers);
+	response.headers.set('Access-Control-Allow-Credentials', 'true');
+};

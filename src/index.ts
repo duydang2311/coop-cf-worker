@@ -13,7 +13,8 @@
 
 import GET from './GET';
 import HEAD from './HEAD';
-import { getJwt, verifyJwt, type JwtPayload } from './utils';
+import OPTIONS from './OPTIONS';
+import { getJwt, isOriginAllowed, setResponseCorsHeaders, verifyJwt, type JwtPayload } from './utils';
 
 declare global {
 	namespace Cloudflare {
@@ -25,25 +26,46 @@ declare global {
 
 export default {
 	async fetch(request, env, ctx) {
+		const requestOrigin = request.headers.get('Origin') || request.headers.get('Referrer');
+		const requestHeaders = request.headers.get('Access-Control-Request-Headers') ?? '*';
+		if (!requestOrigin || !isOriginAllowed(env)(requestOrigin)) {
+			return new Response('Forbidden', { status: 403 });
+		}
+
+		if (request.method === 'OPTIONS') {
+			const response = new Response(null, { status: 204 });
+			setResponseCorsHeaders(requestOrigin, requestHeaders)(response);
+			return response;
+		}
+
 		try {
 			env.jwt = await verifyJwt(getJwt(request), env.JWT_PUBLIC_KEY);
 		} catch (e) {
-			console.log({ message: 'Failed to authenticate request', details: e instanceof Error ? e.message : e + '' });
-			return new Response('Unauthorized', { status: 401 });
+			console.info({ message: 'Failed to authenticate request', details: e instanceof Error ? e.message : e + '' });
+			const response = new Response('Unauthorized', { status: 401 });
+			setResponseCorsHeaders(requestOrigin, requestHeaders)(response);
+			return response;
 		}
 
+		let response: Response = undefined!;
 		switch (request.method) {
 			case 'HEAD':
-				return HEAD(request, env, ctx);
+				response = await HEAD(request, env, ctx);
+				break;
 			case 'GET':
-				return GET(request, env, ctx);
+				response = await GET(request, env, ctx);
+				break;
 			default:
-				return new Response('Method Not Allowed', {
+				response = new Response('Method Not Allowed', {
 					status: 405,
 					headers: {
-						Allow: 'HEAD, GET',
+						Allow: 'OPTIONS, HEAD, GET',
 					},
 				});
+				break;
 		}
+
+		setResponseCorsHeaders(requestOrigin, requestHeaders)(response);
+		return response;
 	},
 } satisfies ExportedHandler<Env>;

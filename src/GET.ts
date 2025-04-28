@@ -1,4 +1,4 @@
-import { buildHeaders, getPathname, getSecondsToExpire } from './utils';
+import { getPathname, setResponseCacheHeaders, setResponseR2ObjectHeaders } from './utils';
 
 export default (async (request, env, ctx) => {
 	const cache = caches.default;
@@ -11,9 +11,10 @@ export default (async (request, env, ctx) => {
 		if (!object) {
 			return new Response('Not Found', { status: 404 });
 		}
-		const headers = buildHeaders(object);
-		headers.set('Cache-Control', `max-age=${getSecondsToExpire(env.jwt.exp)}, must-revalidate`);
-		response = new Response(object.body, { status: 200, headers });
+
+		response = new Response(object.body, { status: 200 });
+		setResponseR2ObjectHeaders(object)(response);
+		setResponseCacheHeaders(env.jwt)(response);
 		ctx.waitUntil(cache.put(request, response.clone()));
 	}
 
