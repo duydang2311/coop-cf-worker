@@ -44,7 +44,7 @@
 	"vars": {
 		"JWT_PUBLIC_KEY": "-----BEGIN PUBLIC KEY-----\nMIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEA2YHAseBqwY8DtYRWolM4\n2ryLjffNoFNnxuzO0TZb6voZDDpDruOE8qNBZ3vBnDz9mLRv4JzMzZGJFk3bHv04\ne\u002BxPnNE5v6dQeednHSUrXKD5QeWmyAXbLHX1aXrX58ZAVAcZZbgCP9jJt/pd6PHh\nPElxBpjLAEGSrwcDt2AbP80YY\u002BoxTdkbKHja2Iev4KvEoTUE\u002B1fGSU4KYRJc6UBJ\n\u002BW5lUJNWhjnn7VXlFMhCp\u002BHXt6AKD6RuLtWa2DmjHabcP7387TvHDo21Yfdg1TeY\nxqL8vkLvZmFUJh1wP9sc6x4H1ReZX\u002BB0LsNPUgybmkZ/83CJTjCIwz2vcwVIl8gP\nR6/wVsNGV8TMPmTe3egAf5Yb9WSqlTzdEcQbj/b9H2SJMBX7ZhjiBK5ks5zNIC1\u002B\n4/qv2bu9Z25KD2gjHxqRcyYEfl63wbQaVnHE8\u002BanwssQYnjj2cg6bMDZ375Xw0kC\nwJNqJsocQfSldbtWtKjTR8iseNkz6tJ7LsLL6wWjmJaQqnr\u002BncbUFk7k2MjJr\u002BTN\ntKKe8yWJxLaH5hzXXvsHqBipstAeaw2a7Ldltstm1NJpCrbHnmj8LH6xHmsZhme\u002B\n7HBFqmk68iz4ox0q5ACSwyVskpggvMjvuniP6CHTDkYw2jXR9CH5SHNFWQPceUGJ\npdLNANZAgLVlqG2mYsnAZh0CAwEAAQ==\n-----END PUBLIC KEY-----",
 		"ALLOWED_ORIGINS": ["http://localhost:5173"]
-	}
+	},
 	/**
 	 * Note: Use secrets to store sensitive data.
 	 * https://developers.cloudflare.com/workers/configuration/secrets/
@@ -61,4 +61,17 @@
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
 	 */
 	// "services": [{ "binding": "MY_SERVICE", "service": "my-service" }],
+	"unsafe": {
+		"bindings": [
+			{
+				"name": "USER_RATE_LIMITER",
+				"type": "ratelimit",
+				"namespace_id": "1001",
+				"simple": {
+					"limit": 100,
+					"period": 60
+				}
+			}
+		]
+	},
 }

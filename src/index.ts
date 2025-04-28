@@ -13,12 +13,12 @@
 
 import GET from './GET';
 import HEAD from './HEAD';
-import OPTIONS from './OPTIONS';
-import { getJwt, isOriginAllowed, setResponseCorsHeaders, verifyJwt, type JwtPayload } from './utils';
+import { getJwt, getPathname, isOriginAllowed, setResponseCorsHeaders, verifyJwt, type JwtPayload } from './utils';
 
 declare global {
 	namespace Cloudflare {
 		interface Env {
+			objectKey: string;
 			jwt: JwtPayload;
 		}
 	}
@@ -32,12 +32,6 @@ export default {
 			return new Response('Forbidden', { status: 403 });
 		}
 
-		if (request.method === 'OPTIONS') {
-			const response = new Response(null, { status: 204 });
-			setResponseCorsHeaders(requestOrigin, requestHeaders)(response);
-			return response;
-		}
-
 		try {
 			env.jwt = await verifyJwt(getJwt(request), env.JWT_PUBLIC_KEY);
 		} catch (e) {
@@ -46,6 +40,23 @@ export default {
 			setResponseCorsHeaders(requestOrigin, requestHeaders)(response);
 			return response;
 		}
+
+		const pathname = getPathname(request);
+		const { success } = await env.USER_RATE_LIMITER.limit({ key: env.jwt.nameid });
+		if (!success) {
+			const response = new Response('Rate limit exceeded', { status: 429 });
+			response.headers.set('Retry-After', '60');
+			setResponseCorsHeaders(requestOrigin, requestHeaders)(response);
+			return response;
+		}
+
+		if (request.method === 'OPTIONS') {
+			const response = new Response(null, { status: 204 });
+			setResponseCorsHeaders(requestOrigin, requestHeaders)(response);
+			return response;
+		}
+
+		env.objectKey = pathname.substring(1);
 
 		let response: Response = undefined!;
 		switch (request.method) {
