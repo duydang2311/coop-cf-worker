@@ -6,6 +6,7 @@ export interface JwtPayload {
 	nbf: number;
 	exp: number;
 	iat: number;
+	object_key: string;
 }
 
 export const getPathname = (request: Request) => {
@@ -72,6 +73,10 @@ export const verifyJwt = async (token: string, publicPemSkpi: string) => {
 
 	if (payload.iat > now) {
 		throw new Error('Token was issued in the future');
+	}
+
+	if (typeof payload.object_key !== 'string') {
+		throw new Error('Invalid object key in token payload');
 	}
 
 	return payload;

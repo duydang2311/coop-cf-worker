@@ -58,6 +58,12 @@ export default {
 
 		env.objectKey = pathname.substring(1);
 
+		if (env.jwt.object_key !== env.objectKey) {
+			const response = new Response('Forbidden', { status: 403 });
+			setResponseCorsHeaders(requestOrigin, requestHeaders)(response);
+			return response;
+		}
+
 		let response: Response = undefined!;
 		switch (request.method) {
 			case 'HEAD':
