@@ -106,7 +106,9 @@ export const getJwt = (request: Request) => {
 		throw new Error('Missing Authorization header');
 	}
 
-	const [scheme, token] = header.split(' ')[1];
+	const schemeLength = 'Bearer'.length;
+	const scheme = header.substring(0, schemeLength);
+	const token = header.substring(schemeLength + 1);
 	if (scheme !== 'Bearer') {
 		throw new Error('Invalid Authorization scheme');
 	}
